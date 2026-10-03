@@ -55,6 +55,10 @@
             .grid { grid-template-columns: 1fr; }
             .controls, .lifestyle-grid { flex-direction: column; align-items: stretch; }
         }
+        .print-only { display: none; }
+        @media print {
+            .print-only { display: block !important; }
+        }
     </style>
 </head>
 <body onload="runAlgorithm()">
@@ -172,8 +176,16 @@
         <div><b>Date:</b> <span id="fDate"></span></div>
         <div><b>Counselor Signature:</b> ____________________</div>
     </div>
-    <div style="text-align: center; font-size: 10px; color: #bdc3c7; margin-top: 10px; font-family: monospace;">Powered by https://ratansystems.in/</div>
-</div>
+    <div style="text-align: center; margin-top: 25px;" class="no-print">
+        <a href="https://ratansystems.in/" target="_blank" style="text-decoration: none; display: inline-block; background: #ecfdf5; color: #059669; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; border: 1px solid #a7f3d0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s;">
+            🚀 Powered by ratansystems.in
+        </a>
+    </div>
+    
+    <!-- Clean text version strictly for the physical printed paper -->
+    <div style="text-align: center; font-size: 10px; color: #95a5a6; margin-top: 15px; display: none;" class="print-only">
+        Powered by ratansystems.in
+    </div>
 
 <script>
 // Auto-fill today's date

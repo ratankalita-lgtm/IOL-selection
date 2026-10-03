@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Free IOL lifestyle recommender — score, filter and print personalized IOL counselling handouts for       cataract surgery.">
+    <meta property="og:title" content="IOL Lifestyle Recommender">
     <title>Clinical IOL Lifestyle Recommender</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #2c3e50; line-height: 1.5; background: #f4f7f6; }
@@ -68,7 +70,7 @@
         }
     </style>
 </head>
-<body onload="runAlgorithm()">
+<body>
 
 <div class="no-print">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 20px;">
@@ -212,10 +214,13 @@
     <div style="text-align: center; font-size: 10px; color: #95a5a6; margin-top: 15px; display: none;" class="print-only">
         Powered by ratansystems.in
     </div>
-
+</div>
 <script>
-// Auto-fill today's date
-document.getElementById('fDate').innerText = new Date().toLocaleDateString('en-IN');
+// Run once the DOM is fully parsed
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('fDate').innerText = new Date().toLocaleDateString('en-IN');
+    runAlgorithm();
+});
 
 function updateHeader() {
     document.getElementById('dispName').innerText = document.getElementById('ptName').value || "________________";
@@ -223,8 +228,38 @@ function updateHeader() {
     document.getElementById('dispEye').innerText = document.getElementById('eyeSelect').value;
 }
 
-const uspLabel = { en: "Why this one", as: "এইটো কিয়", bn: "এটি কেন" };
+// ---------- Language-aware labels used across the UI ----------
+const uspLabel = {
+    en: "Why this one",
+    as: "এইটো কিয়",
+    bn: "এটি কেন"
+};
 
+const toricLabels = {
+    en: ["Not Required", "Required (Moderate)", "Required (High)", "Required (Critical)"],
+    as: ["প্ৰয়োজন নাই", "প্ৰয়োজন (মজলীয়া)", "প্ৰয়োজন (বেছি)", "প্ৰয়োজন (অতি বেছি)"],
+    bn: ["প্রয়োজন নেই", "প্রয়োজন (মাঝারি)", "প্রয়োজন (বেশি)", "প্রয়োজন (অতি বেশি)"]
+};
+
+const contraMsg = {
+    en: "ALL LENSES IN THIS TIER CONTRAINDICATED",
+    as: "এই শ্ৰেণীৰ সকলো লেন্স ৰোগৰ বাবে অনুপযুক্ত",
+    bn: "এই শ্রেণীর সব লেন্স রোগের জন্য অনুপযুক্ত"
+};
+
+const economyNote = {
+    en: "Note: Toric lenses start from the Standard tier. Entry-level lenses do not correct astigmatism.",
+    as: "টোকা: টৰিক লেন্স মধ্যম শ্ৰেণীৰ পৰা আৰম্ভ হয়। প্ৰাথমিক শ্ৰেণীৰ লেন্সে এষ্টিগমেটিজম সংশোধন নকৰে।",
+    bn: "নোট: টরিক লেন্স মধ্যবর্তী শ্রেণী থেকে শুরু। প্রাথমিক শ্রেণীর লেন্স অ্যাস্টিগমাটিজম সংশোধন করে না।"
+};
+
+// Which lens types are clinically allowed per pathology
+const safeTypes = {
+    none:     ["Mono", "Enhanced", "EDOF", "Multifocal"],
+    corneal:  ["Mono", "Enhanced"],
+    retinal:  ["Mono"],
+    glaucoma: ["Mono"]
+};
 const inventory = [
     // ECONOMY
     { name: "Appaswamy SupraPhob", cat: "Economy", type: "Mono", isToric: false, base: 48, modifiers: { night: 3 }, usp: { en: "Hydrophobic surface improves biocompatibility while staying budget-friendly.", as: "হাইড্ৰ'ফ'বিক পৃষ্ঠই বাজেট-বান্ধৱ হৈ জৈৱ-সামঞ্জস্য উন্নত কৰে।", bn: "হাইড্রোফোবিক পৃষ্ঠ বাজেট-বান্ধব থেকে জৈব-সামঞ্জস্য উন্নত করে।" } },
@@ -275,9 +310,8 @@ function runAlgorithm() {
     const needsToric = astigLevel > 0;
     
     // Update Toric UI indicator
-    const toricLabels = ["Not Required", "Required (Moderate)", "Required (High)", "Required (Critical)"];
     const toricColors = ["#7f8c8d", "#f39c12", "#d35400", "#c0392b"];
-    document.getElementById('dispToric').innerText = toricLabels[astigLevel];
+    document.getElementById('dispToric').innerText = toricLabels[lang][astigLevel];
     document.getElementById('dispToric').style.color = toricColors[astigLevel];
 
     const g_night = parseInt(document.getElementById('g_night').value);
@@ -285,7 +319,7 @@ function runAlgorithm() {
     const g_inter = parseInt(document.getElementById('g_inter').value);
     const g_out = parseInt(document.getElementById('g_out').value);
     const g_indep = parseInt(document.getElementById('g_indep').value);
-
+    
     const weights = {
         "Mono": { night: 10, near: -10, inter: -5, out: 10, indep: -10 },
         "Enhanced": { night: 5, near: -5, inter: 10, out: 10, indep: -5 },
@@ -309,15 +343,16 @@ function runAlgorithm() {
         });
 
     const hasPathology = path !== 'none';
-    const clinicallySafeInventory = hasPathology ? scoredInventory.filter(lens => lens.type === "Mono") : scoredInventory;
+    const allowedTypes = safeTypes[path] || ["Mono"];
+    const clinicallySafeInventory = scoredInventory.filter(lens => allowedTypes.includes(lens.type));
 
     const renderCategory = (cat, gridId, borderClass) => {
         const top3 = clinicallySafeInventory.filter(l => l.cat === cat).sort((a,b) => b.score - a.score).slice(0, 3);
         const grid = document.getElementById(gridId);
         grid.innerHTML = "";
         
-        if (top3.length === 0 && hasPathology && (cat === "Standard" || cat === "Premium")) {
-            grid.innerHTML = `<div style="grid-column: span 3; text-align: center; padding: 20px; color: #e74c3c; font-weight: bold;">ALL LENSES IN THIS TIER CONTRAINDICATED</div>`;
+        if (top3.length === 0 && hasPathology) {
+            grid.innerHTML = `<div style="grid-column: span 3; text-align: center; padding: 20px; color: #e74c3c; font-weight: bold;">${contraMsg[lang]}</div>`;
             return;
         }
 
@@ -345,7 +380,20 @@ function runAlgorithm() {
     renderCategory("Premium", "gridPremium", "premium-border");
     
     // Hide economy segment completely if Toric is needed (since there are no pure economy Torics in this list)
+    
     document.getElementById('segEconomy').style.display = needsToric ? 'none' : 'block';
+
+    // Show a one-line explanation above the Standard tier when Economy is hidden
+    const stdSegment = document.getElementById('gridStandard').parentElement;
+    const existingNote = stdSegment.querySelector('.toric-note');
+    if (existingNote) existingNote.remove();
+    if (needsToric) {
+        const note = document.createElement('div');
+        note.className = 'toric-note';
+        note.style.cssText = "font-size:11px; color:#7f8c8d; font-style:italic; margin-bottom:10px;";
+        note.innerText = economyNote[lang];
+        stdSegment.insertBefore(note, document.getElementById('gridStandard'));
+    }
 
     const flagMsg = { en: "NOT RECOMMENDED DUE TO PATHOLOGY", as: "ৰোগৰ বাবে পৰামৰ্শ কৰা নহয়", bn: "রোগের কারণে প্রস্তাবিত নয়" };
     
@@ -354,12 +402,13 @@ function runAlgorithm() {
         el.innerText = flagMsg[lang];
     });
 
-    ['gridStandard', 'gridPremium'].forEach(gridId => {
+        // Clear any residual inline styling from a previous render
+    ['gridEconomy', 'gridStandard', 'gridPremium'].forEach(gridId => {
         const grid = document.getElementById(gridId);
         if (grid) {
-            grid.style.opacity = hasPathology ? '0.4' : '1';
-            grid.style.filter = hasPathology ? 'grayscale(100%) blur(1px)' : 'none';
-            grid.style.pointerEvents = hasPathology ? 'none' : 'auto';
+            grid.style.opacity = '1';
+            grid.style.filter = 'none';
+            grid.style.pointerEvents = 'auto';
         }
     });
 }
